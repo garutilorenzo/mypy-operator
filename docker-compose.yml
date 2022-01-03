@@ -1,0 +1,102 @@
+version: '3.4'
+services:
+
+  operator:
+    image: mysql-operator:dev
+    build:
+     context: operator_image/
+     args:
+       - http_proxy=$http_proxy
+       - https_proxy=$http_proxy
+    container_name: mysql-operator
+    environment:
+      - PATH=$PATH:/app/.local/bin/
+      - PYTHONPATH=$PYTHONPATH:/app/src
+      - BOTTLE_APP_ENVIRONMENT=dev
+      - BOTTLE_APP_NAME=operator
+    volumes:
+      - ./src:/app/src
+    command: ['python', 'operator/app.py']
+    ports:
+      - 8080:8080
+    depends_on:
+      - mongo
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "5"
+    restart: always
+  
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=mysql
+      - MONGO_INITDB_ROOT_PASSWORD=operator
+      - MONGO_INITDB_DATABASE=mysql_operator
+    volumes:
+      - type: volume
+        source: mongo
+        target: /data/db
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "5"
+    restart: always
+  
+  mysql_node01:
+    hostname: mysql_node01
+    image: mysql_server:dev
+    build:
+     context: mysql_image/
+     args:
+       - http_proxy=$http_proxy
+       - https_proxy=$http_proxy
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - type: volume
+        source: mysql_node01
+        target: /var/lib/mysql/
+        volume:
+          nocopy: true
+    cap_add:
+      - SYS_NICE  # CAP_SYS_NICE
+    environment:
+       MYSQL_ROOT_PASSWORD: root
+       MYSQL_USER: test
+       MYSQL_PASSWORD: P@ssw0rd
+       MYSQL_DATABASE: db_test
+       GROUP_REPLICATION_NAME: C55153C1-1574-4972-BF06-7332D6AD46A7
+  
+  mysql_node02:
+    hostname: mysql_node02
+    image: mysql_server:dev
+    build:
+     context: mysql_image/
+     args:
+       - http_proxy=$http_proxy
+       - https_proxy=$http_proxy
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - type: volume
+        source: mysql_node02
+        target: /var/lib/mysql/
+        volume:
+          nocopy: true
+    cap_add:
+      - SYS_NICE  # CAP_SYS_NICE
+    environment:
+       MYSQL_ROOT_PASSWORD: root
+       MYSQL_USER: test
+       MYSQL_PASSWORD: P@ssw0rd
+       MYSQL_DATABASE: db_test
+       GROUP_REPLICATION_NAME: C55153C1-1574-4972-BF06-7332D6AD46A7
+
+volumes:
+ mongo:
+ mysql_node01:
+ mysql_node02:
+ mysql_node03:

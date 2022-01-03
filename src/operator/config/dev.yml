@@ -1,0 +1,9 @@
+---
+enable_debug: True
+enable_reloader: True
+http_port: 8080
+mongo_username: "mysql"
+mongo_password: "operator"
+mongo_db: "mysql_operator"
+mongo_host: "mongo"
+mongo_port: 27017
