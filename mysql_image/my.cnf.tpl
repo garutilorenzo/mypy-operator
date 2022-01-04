@@ -11,9 +11,9 @@ port      = 3306
 binlog_format = ROW
 
 gtid_mode=ON
-enforce-gtid-consistency=true
+enforce-gtid-consistency=ON
 
-log-slave-updates
+log_replica_updates
 log_bin                   = mysql-bin
 
 default_storage_engine = InnoDB
@@ -21,9 +21,9 @@ default_storage_engine = InnoDB
 # replication
 
 report-host = ${MYSQL_HOSTNAME}
-slave_net_timeout = 60
+replica_net_timeout = 60
 
-skip-slave-start
+skip_replica_start
 
 transaction_isolation = 'READ-COMMITTED'
 
@@ -35,13 +35,14 @@ auto_increment_increment = 1
 auto_increment_offset = 2
 
 binlog_transaction_dependency_tracking = WRITESET 
-slave_parallel_type = LOGICAL_CLOCK
-slave_preserve_commit_order = ON
+replica_parallel_type = LOGICAL_CLOCK
+replica_preserve_commit_order = ON
 
 # super_read_only=on
 
 plugin_load_add='group_replication.so'
-group_replication_group_name="${GROUP_REPLICATION_NAME}"
+group_replication_group_name="${GR_NAME}"
+group_replication_view_change_uuid="${GR_VCU}"
 group_replication_start_on_boot=on
 group_replication_local_address="${MYSQL_HOSTNAME}:33061"
 ${GR_SEEDS}

@@ -1,13 +1,17 @@
 from mongo_schema import Cluster,Server,ClusterId
 import utils
+import uuid
 
 def init_cluster(data):
     errors = []
+    result = {}
     try:
-        cluster = Cluster.objects(gr_name=data['gr_name']).first()
+        cluster = Cluster.objects(cluster_name=data['cluster_name']).first()
         if not cluster:
             cluster = Cluster(
-                gr_name=data['gr_name'],
+                cluster_name=data['cluster_name'],
+                gr_name=str(uuid.uuid4()),
+                gr_vcu=str(uuid.uuid4()),
             )
             cluster.save()
 
@@ -16,16 +20,18 @@ def init_cluster(data):
                 cluster=cluster,
             )
             cluster_id.save()
-        result = 1
+        result['exit_code'] = 1
+        result['gr_name'] = cluster.gr_name
+        result['gr_vcu'] = cluster.gr_vcu
     except Exception as e:
-        result = 0
+        result['exit_code'] = 0
         errors.append(e)
     return {'errors': errors, 'data': result}
 
 def increment_last_id(data, size=1):
     errors = []
     try:
-        cluster = Cluster.objects(gr_name=data['gr_name']).first()
+        cluster = Cluster.objects(cluster_name=data['cluster_name']).first()
         cluster_id = ClusterId.objects(cluster=cluster).first()
         new_id = cluster_id.last_id + size
         cluster_id.last_id = new_id
@@ -38,7 +44,7 @@ def increment_last_id(data, size=1):
 def get_last_id(data):
     errors = []
     try:
-        cluster = Cluster.objects(gr_name=data['gr_name']).first()
+        cluster = Cluster.objects(cluster_name=data['cluster_name']).first()
         cluster_id = ClusterId.objects(cluster=cluster).first()
         last_id = last_id_obj.last_id
     except Exception as e:
@@ -62,7 +68,7 @@ def get_cluster_members(data):
     result = {'members': []}
     try:
         available_servers = 0
-        cluster = Cluster.objects(gr_name=data['gr_name']).first()
+        cluster = Cluster.objects(cluster_name=data['cluster_name']).first()
         servers = Server.objects(cluster=cluster)
         for server in servers:
             if utils.is_server_reachable(server.server_name):
@@ -79,7 +85,7 @@ def get_server_id(data):
     result = {}
     try:
         server_exist = False
-        cluster = Cluster.objects(gr_name=data['gr_name']).first()
+        cluster = Cluster.objects(cluster_name=data['cluster_name']).first()
         server_obj = Server.objects(cluster=cluster, server_name=data['server_name']).first()
 
         if server_obj:

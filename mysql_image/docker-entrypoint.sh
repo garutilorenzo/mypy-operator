@@ -24,7 +24,7 @@ mysql_error() {
 generate_server_id_data() {
 	cat <<-EOF
 	{
-		"auth_key":"CHANGE_ME", "gr_name": "$GROUP_REPLICATION_NAME", "server_name": "$MYSQL_HOSTNAME"
+		"auth_key":"CHANGE_ME", "cluster_name": "$CLUSTER_NAME", "server_name": "$MYSQL_HOSTNAME"
 	}
 	EOF
 }
@@ -32,7 +32,7 @@ generate_server_id_data() {
 generate_cluster_members_data() {
 	cat <<-EOF
 	{
-		"auth_key":"CHANGE_ME", "gr_name": "$GROUP_REPLICATION_NAME"
+		"auth_key":"CHANGE_ME", "cluster_name": "$CLUSTER_NAME"
 	}
 	EOF
 }
@@ -383,9 +383,13 @@ mysql_autoconfig_minimal_env() {
 	
 	init_cluster=$(curl -s --header "Content-Type: application/json"   --request POST   \
 		--data "$(generate_cluster_members_data)" \
-		http://operator:8080/api/get/init_cluster | jq -r '.data')
+		http://operator:8080/api/get/init_cluster)
 
-	echo $init_cluster
+	GR_NAME=$(echo "$init_cluster" | jq -r '.data.gr_name')
+	GR_VCU=$(echo "$init_cluster" | jq -r '.data.gr_vcu')
+
+	echo $GR_NAME
+	echo $GR_VCU
 	
 	server_id=$(curl --header "Content-Type: application/json"   --request POST   \
 			--data "$(generate_server_id_data)" \
@@ -395,6 +399,8 @@ mysql_autoconfig_minimal_env() {
 	echo $server_id
 	
 	export MYSQL_SERVER_ID
+	export GR_NAME
+	export GR_VCU
 	defined_envs=$(printf '${%s} ' $(env | cut -d= -f1))
 	envsubst "$defined_envs" < /usr/local/bin/my_min.cnf.tpl > "$my_cnf"
 
@@ -414,9 +420,13 @@ mysql_autoconfig() {
 
 		init_cluster=$(curl -s --header "Content-Type: application/json"   --request POST   \
 		--data "$(generate_cluster_members_data)" \
-		http://operator:8080/api/get/init_cluster | jq -r '.data')
+		http://operator:8080/api/get/init_cluster)
 
-		echo $init_cluster
+		GR_NAME=$(echo "$init_cluster" | jq -r '.data.gr_name')
+		GR_VCU=$(echo "$init_cluster" | jq -r '.data.gr_vcu')
+
+		echo $GR_NAME
+		echo $GR_VCU
 		
 		available_servers=$(curl --header "Content-Type: application/json"   --request POST   \
 		--data "$(generate_cluster_members_data)" \
@@ -449,6 +459,8 @@ mysql_autoconfig() {
 		export GR_BOOTSTRAP
 		export MYSQL_SERVER_ID
 		export GR_SEEDS
+		export GR_NAME
+		export GR_VCU
 		defined_envs=$(printf '${%s} ' $(env | cut -d= -f1))
 		envsubst "$defined_envs" < /usr/local/bin/my.cnf.tpl > "$my_cnf"
 		cp $my_cnf $DATADIR/my.cnf_init

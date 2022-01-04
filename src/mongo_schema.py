@@ -1,10 +1,10 @@
 from mongoengine import *
 import datetime
-import uuid
 
 class Cluster(Document):
-    cluster_name = StringField(required=False, unique=True, default=uuid.uuid4().hex)
+    cluster_name = StringField(required=False, unique=True)
     gr_name = StringField(required=True, unique=True)
+    gr_vcu = StringField(required=True, unique=True)
     state = StringField(required=False, default='discovered')
     created_time = DateTimeField(default=datetime.datetime.utcnow)
     modified_time = DateTimeField(default=datetime.datetime.utcnow)

@@ -76,7 +76,7 @@ def servers():
 @app.route('/api/get/init_cluster', method='POST')
 def api_get_init_cluster():
     result = {'errors': [], 'data': []}
-    params = ['cluster_name', 'gr_name', 'auth_key']
+    params = ['cluster_name', 'auth_key']
    
     # parse input data
     try:
@@ -118,7 +118,7 @@ def api_get_init_cluster():
 @app.route('/api/get/cluster_members', method='POST')
 def api_get_cluster_members():
     result = {'errors': [], 'data': []}
-    params = ['cluster_name', 'gr_name', 'auth_key']
+    params = ['cluster_name', 'auth_key']
    
     # parse input data
     try:
@@ -150,7 +150,7 @@ def api_get_cluster_members():
     if cluster_result.get('errors'):
         response.status = 500
         response.set_header("Content-Type", 'application/json')
-        result['errors'].extend(str(cluster_result['errors']))
+        result['errors'].extend(''.join(str(cluster_result['errors'])))
         return json.dumps(result, indent=4, sort_keys=True)
 
     # return 200 Success
@@ -160,7 +160,7 @@ def api_get_cluster_members():
 @app.route('/api/get/server_id', method='POST')
 def api_get_server_id():
     result = {'errors': [], 'data': []}
-    params = ['cluster_name', 'gr_name', 'server_name', 'auth_key']
+    params = ['cluster_name', 'server_name', 'auth_key']
    
     # parse input data
     try:
