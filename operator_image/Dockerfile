@@ -42,6 +42,11 @@ RUN apt-get remove -y make gcc  musl-dev libc-dev g++ gnupg && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists
 
+RUN curl -L -o get-pip.py https://bootstrap.pypa.io/get-pip.py && \
+    mysqlsh --py -f get-pip.py && \
+    rm -rf get-pip.py && \
+    mysqlsh --pym pip install --user cryptography 
+
 COPY cluster.sh /usr/local/bin/cluster.sh
 
 USER web

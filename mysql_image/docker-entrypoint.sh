@@ -24,7 +24,7 @@ mysql_error() {
 generate_server_id_data() {
 	cat <<-EOF
 	{
-		"auth_key":"CHANGE_ME", "cluster_name": "$CLUSTER_NAME", "server_name": "$MYSQL_HOSTNAME"
+		"auth_key":"CHANGE_ME", "cluster_name": "$CLUSTER_NAME", "server_name": "$MYSQL_HOSTNAME", "my_root_pw": "$MYSQL_ROOT_PASSWORD" 
 	}
 	EOF
 }
@@ -32,7 +32,7 @@ generate_server_id_data() {
 generate_cluster_members_data() {
 	cat <<-EOF
 	{
-		"auth_key":"CHANGE_ME", "cluster_name": "$CLUSTER_NAME"
+		"auth_key":"CHANGE_ME", "cluster_name": "$CLUSTER_NAME", "operator_user": "$OPERATOR_USER", "operator_pw": "$OPERATOR_PASSWORD", "replica_user": "$REPLICA_USER", "replica_pw": "$REPLICA_PASSWORD"
 	}
 	EOF
 }
@@ -64,37 +64,6 @@ _is_sourced() {
 	[ "${#FUNCNAME[@]}" -ge 2 ] \
 		&& [ "${FUNCNAME[0]}" = '_is_sourced' ] \
 		&& [ "${FUNCNAME[1]}" = 'source' ]
-}
-
-# usage: docker_process_init_files [file [file [...]]]
-#    ie: docker_process_init_files /always-initdb.d/*
-# process initializer files, based on file extensions
-docker_process_init_files() {
-	# mysql here for backwards compatibility "${mysql[@]}"
-	mysql=( docker_process_sql )
-
-	echo
-	local f
-	for f; do
-		case "$f" in
-			*.sh)
-				# https://github.com/docker-library/postgres/issues/450#issuecomment-393167936
-				# https://github.com/docker-library/postgres/pull/452
-				if [ -x "$f" ]; then
-					mysql_note "$0: running $f"
-					"$f"
-				else
-					mysql_note "$0: sourcing $f"
-					. "$f"
-				fi
-				;;
-			*.sql)    mysql_note "$0: running $f"; docker_process_sql < "$f"; echo ;;
-			*.sql.gz) mysql_note "$0: running $f"; gunzip -c "$f" | docker_process_sql; echo ;;
-			*.sql.xz) mysql_note "$0: running $f"; xzcat "$f" | docker_process_sql; echo ;;
-			*)        mysql_warn "$0: ignoring $f" ;;
-		esac
-		echo
-	done
 }
 
 # arguments necessary to run "mysqld --verbose --help" successfully (used for testing configuration validity and for extracting default/configured values)
@@ -235,6 +204,10 @@ docker_setup_env() {
 	file_env 'MYSQL_USER'
 	file_env 'MYSQL_PASSWORD'
 	file_env 'MYSQL_ROOT_PASSWORD'
+	file_env 'OPERATOR_USER'
+	file_env 'OPERATOR_PASSWORD'
+	file_env 'REPLICA_USER'
+	file_env 'REPLICA_PASSWORD'
 
 	declare -g DATABASE_ALREADY_EXISTS
 	if [ -d "$DATADIR/mysql" ]; then
@@ -360,7 +333,33 @@ mysql_expire_root_user() {
 	fi
 }
 
+setup_replica_user() {
+	mysql_note "GENERATED USER $REPLICA_USER FOR REPLICATION WITH PASSWORD: $REPLICA_PASSWORD"
+	docker_process_sql --database=mysql <<-EOSQL
+		SET @@SESSION.SQL_LOG_BIN=0;
+
+		CREATE USER '$REPLICA_USER'@'%' IDENTIFIED BY '$REPLICA_PASSWORD' ;
+		GRANT GROUP_REPLICATION_STREAM ON *.* TO '$REPLICA_USER'@'%';
+		GRANT REPLICATION SLAVE ON *.* TO '$REPLICA_USER'@'%';
+	EOSQL
+}
+
+setup_operator_user() {
+	mysql_note "GENERATED USER $OPERATOR_USER FOR OPS ADMINISTRATION WITH PASSWORD: $OPERATOR_PASSWORD"
+	docker_process_sql --database=mysql <<-EOSQL
+		SET @@SESSION.SQL_LOG_BIN=0;
+		
+		CREATE USER '$OPERATOR_USER'@'%' IDENTIFIED BY '$OPERATOR_PASSWORD' ;
+		GRANT RELOAD, SHUTDOWN, PROCESS, FILE, SELECT, SUPER, REPLICATION SLAVE, REPLICATION CLIENT, REPLICATION_APPLIER, CREATE USER, SYSTEM_VARIABLES_ADMIN, PERSIST_RO_VARIABLES_ADMIN, BACKUP_ADMIN, CLONE_ADMIN, EXECUTE ON *.* TO '$OPERATOR_USER'@'%' ;
+		GRANT ALTER, ALTER ROUTINE, CREATE, CREATE ROUTINE, CREATE TEMPORARY TABLES, CREATE VIEW, DELETE, DROP, EVENT, EXECUTE, INDEX, INSERT, LOCK TABLES, REFERENCES, SHOW VIEW, TRIGGER, UPDATE ON  mysql_innodb_cluster_metadata.*  TO '$OPERATOR_USER'@'%' ;
+		GRANT ALTER, ALTER ROUTINE, CREATE, CREATE ROUTINE, CREATE TEMPORARY TABLES, CREATE VIEW, DELETE, DROP, EVENT, EXECUTE, INDEX, INSERT, LOCK TABLES, REFERENCES, SHOW VIEW, TRIGGER, UPDATE ON  mysql_innodb_cluster_metadata_bkp.*  TO '$OPERATOR_USER'@'%' ;
+		GRANT ALTER, ALTER ROUTINE, CREATE, CREATE ROUTINE, CREATE TEMPORARY TABLES, CREATE VIEW, DELETE, DROP, EVENT, EXECUTE, INDEX, INSERT, LOCK TABLES, REFERENCES, SHOW VIEW, TRIGGER, UPDATE ON  mysql_innodb_cluster_metadata_previous.*  TO '$OPERATOR_USER'@'%' ;
+		GRANT INSERT, UPDATE, DELETE ON mysql.* TO '$OPERATOR_USER'@'%' ;
+	EOSQL
+}
+
 change_master() {
+	mysql_note "RESET MASTER AND CHANGE MASTER FOR CHANNELL 'group_replication_recovery'"
 	# let's remove any binary logs or GTID metadata that may have been generated
 	docker_process_sql --database=mysql <<-EOSQL
 		RESET MASTER ;
@@ -368,7 +367,7 @@ change_master() {
 
 	# lastly we need to setup the recovery channel with a valid username/password
 	docker_process_sql --database=mysql <<-EOSQL
-		CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='$MYSQL_ROOT_PASSWORD' FOR CHANNEL 'group_replication_recovery' ;
+		CHANGE MASTER TO MASTER_USER='$REPLICA_USER', MASTER_PASSWORD='$REPLICA_PASSWORD' FOR CHANNEL 'group_replication_recovery' ;
 	EOSQL
 }
 
@@ -387,6 +386,13 @@ mysql_autoconfig_minimal_env() {
 
 	GR_NAME=$(echo "$init_cluster" | jq -r '.data.gr_name')
 	GR_VCU=$(echo "$init_cluster" | jq -r '.data.gr_vcu')
+	OPERATOR_USER=$(echo "$init_cluster" | jq -r '.data.operator_user')
+	OPERATOR_PASSWORD_B64=$(echo "$init_cluster" | jq -r '.data.operator_pw')
+	REPLICA_USER=$(echo "$init_cluster" | jq -r '.data.replica_user')
+	REPLICA_PASSWORD_B64=$(echo "$init_cluster" | jq -r '.data.replica_pw')
+
+	OPERATOR_PASSWORD=$(echo "$OPERATOR_PASSWORD_B64" | base64 --decode)
+	REPLICA_PASSWORD=$(echo "$REPLICA_PASSWORD_B64" | base64 --decode)
 
 	echo $GR_NAME
 	echo $GR_VCU
@@ -401,6 +407,11 @@ mysql_autoconfig_minimal_env() {
 	export MYSQL_SERVER_ID
 	export GR_NAME
 	export GR_VCU
+	export OPERATOR_USER
+	export OPERATOR_PASSWORD
+	export REPLICA_USER
+	export REPLICA_PASSWORD
+
 	defined_envs=$(printf '${%s} ' $(env | cut -d= -f1))
 	envsubst "$defined_envs" < /usr/local/bin/my_min.cnf.tpl > "$my_cnf"
 
@@ -456,11 +467,13 @@ mysql_autoconfig() {
 			done
 			GR_SEEDS=$(echo $GR_SEEDS | sed 's/,$//')
 		fi
+
 		export GR_BOOTSTRAP
 		export MYSQL_SERVER_ID
 		export GR_SEEDS
 		export GR_NAME
 		export GR_VCU
+
 		defined_envs=$(printf '${%s} ' $(env | cut -d= -f1))
 		envsubst "$defined_envs" < /usr/local/bin/my.cnf.tpl > "$my_cnf"
 		cp $my_cnf $DATADIR/my.cnf_init
@@ -525,8 +538,10 @@ _main() {
 			mysql_note "Temporary server started."
 
 			docker_setup_db
-			docker_process_init_files /docker-entrypoint-initdb.d/*
-
+			
+			setup_replica_user
+			setup_operator_user
+			
 			mysql_expire_root_user
 
 			change_master "$@"

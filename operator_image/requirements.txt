@@ -3,3 +3,4 @@ mongoengine
 bottle
 uwsgi
 pyyaml
+cryptography

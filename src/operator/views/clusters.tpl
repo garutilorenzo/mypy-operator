@@ -15,13 +15,13 @@
                 <p> 
                   % if cluster.state == 'active':
                   % badge_css = 'bg-success'
-                  % elif cluster.state == 'discovered':
+                  % elif cluster.state == 'init':
                   % badge_css = 'bg-danger'
                   % end
                   State: <span class="badge rounded-pill {{ badge_css }}">{{ cluster.state }}</span> 
                 </p>
                 <p>
-                    % servers = get_servers(cluster=cluster)
+                    % servers = get_servers(cluster_name=cluster.cluster_name, output='web')
                     Cluster members: {{ len(servers) }}
                 </p>
                 <a href="/cluster/{{ cluster.gr_name }}" class="btn btn-primary btn-sm" title="Go to cluster {{ cluster.cluster_name }} detail">Detail</a>

@@ -62,13 +62,15 @@ def index():
 @app.route('/clusters')
 @view('clusters')
 def clusters():
-    clusters = db_api.get_clusters()
+    clusters_result = db_api.get_clusters(output='web')
+    clusters = clusters_result['data']
     return dict(page_name='clusters', clusters=clusters)
 
 @app.route('/servers')
 @view('servers')
 def servers():
-    servers = db_api.get_servers()
+    servers_result = db_api.get_servers(output='web')
+    servers = servers_result['data']
     return dict(page_name='servers', servers=servers)
 
 ### API-REST ###
@@ -76,7 +78,7 @@ def servers():
 @app.route('/api/get/init_cluster', method='POST')
 def api_get_init_cluster():
     result = {'errors': [], 'data': []}
-    params = ['cluster_name', 'auth_key']
+    params = ['cluster_name', 'operator_user', 'operator_pw', 'replica_user', 'replica_pw', 'auth_key']
    
     # parse input data
     try:
@@ -115,10 +117,98 @@ def api_get_init_cluster():
     response.set_header("Content-Type", 'application/json')
     return json.dumps(init_result, indent=4, sort_keys=True)
 
+@app.route('/api/get/clusters', method='POST')
+def api_get_clusters():
+    result = {'errors': [], 'data': []}
+    params = ['auth_key']
+   
+    # parse input data
+    try:
+        data = request.json
+    except ValueError:
+        response.status = 400
+        response.set_header("Content-Type", 'application/json')
+        result['errors'].append('Value error, only application/json objects acepted')
+        return json.dumps(result, indent=4, sort_keys=True)
+    
+    
+    for key in data.keys():
+        if key not in params:
+            response.status = 400
+            response.set_header("Content-Type", 'application/json')
+            result['errors'].append('{} params not acepted'.format(key))
+            return json.dumps(result, indent=4, sort_keys=True)
+    
+    for value in params:
+        data[value] = data.get(value, '')
+    
+    if not data['auth_key'] or data['auth_key'] != 'CHANGE_ME':
+        response.status = 401
+        response.set_header("Content-Type", 'application/json')
+        result['errors'].append('access denied')
+        return json.dumps(result, indent=4, sort_keys=True)
+
+    clusters_result = db_api.get_clusters()
+    if clusters_result.get('errors'):
+        response.status = 500
+        response.set_header("Content-Type", 'application/json')
+        result['errors'].extend(str(clusters_result['errors']))
+        return json.dumps(result, indent=4, sort_keys=True)
+
+    # return 200 Success
+    response.set_header("Content-Type", 'application/json')
+    return json.dumps(clusters_result, indent=4, sort_keys=True)
+
+@app.route('/api/get/servers', method='POST')
+def api_get_servers():
+    result = {'errors': [], 'data': []}
+    params = ['cluster_name', 'auth_key']
+   
+    # parse input data
+    try:
+        data = request.json
+    except ValueError:
+        response.status = 400
+        response.set_header("Content-Type", 'application/json')
+        result['errors'].append('Value error, only application/json objects acepted')
+        return json.dumps(result, indent=4, sort_keys=True)
+    
+    
+    for key in data.keys():
+        if key not in params:
+            response.status = 400
+            response.set_header("Content-Type", 'application/json')
+            result['errors'].append('{} params not acepted'.format(key))
+            return json.dumps(result, indent=4, sort_keys=True)
+    
+    for value in params:
+        data[value] = data.get(value, '')
+    
+    if not data['auth_key'] or data['auth_key'] != 'CHANGE_ME':
+        response.status = 401
+        response.set_header("Content-Type", 'application/json')
+        result['errors'].append('access denied')
+        return json.dumps(result, indent=4, sort_keys=True)
+
+    if data.get('cluster_name'):
+        servers_result = db_api.get_servers(cluster_name=data['cluster_name'])
+    else:
+        servers_result = db_api.get_servers()
+
+    if servers_result.get('errors'):
+        response.status = 500
+        response.set_header("Content-Type", 'application/json')
+        result['errors'].extend(str(servers_result['errors']))
+        return json.dumps(result, indent=4, sort_keys=True)
+
+    # return 200 Success
+    response.set_header("Content-Type", 'application/json')
+    return json.dumps(servers_result, indent=4, sort_keys=True)
+
 @app.route('/api/get/cluster_members', method='POST')
 def api_get_cluster_members():
     result = {'errors': [], 'data': []}
-    params = ['cluster_name', 'auth_key']
+    params = ['cluster_name', 'operator_user', 'operator_pw', 'replica_user', 'replica_pw', 'auth_key']
    
     # parse input data
     try:
@@ -160,7 +250,7 @@ def api_get_cluster_members():
 @app.route('/api/get/server_id', method='POST')
 def api_get_server_id():
     result = {'errors': [], 'data': []}
-    params = ['cluster_name', 'server_name', 'auth_key']
+    params = ['cluster_name', 'server_name', 'my_root_pw', 'auth_key']
    
     # parse input data
     try:
