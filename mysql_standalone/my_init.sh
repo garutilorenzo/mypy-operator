@@ -128,6 +128,14 @@ docker_temp_server_stop() {
 
 # Verify that the minimally required password settings are set for new databases.
 docker_verify_minimum_env() {
+	if [ -z "$MYSQL_HOSTNAME" ]; then
+		mysql_error <<-'EOF'
+			MYSQL_HOSTNAME is a required variable
+				Please set MYSQL_HOSTNAME as follow:
+				- docker service name if you are using Docker
+				- a public or private reachable fqdn with the required ports opened (Ports: 3306 33061)
+		EOF
+	fi
 	if [ -z "$MYSQL_ROOT_PASSWORD" -a -z "$MYSQL_ALLOW_EMPTY_PASSWORD" -a -z "$MYSQL_RANDOM_ROOT_PASSWORD" ]; then
 		mysql_error <<-'EOF'
 			Database is uninitialized and password option is not specified
@@ -375,8 +383,6 @@ change_master() {
 mysql_autoconfig_minimal_env() {
 	# MySQL autoconfig minival env
 
-	MYSQL_HOSTNAME=$(hostname)
-	export MYSQL_HOSTNAME
 	my_cnf=/etc/mysql/conf.d/mysqld.cnf
 
 	mysql_note "Run autoconfig minival env: " 

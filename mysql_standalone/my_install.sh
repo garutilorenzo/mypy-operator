@@ -1,8 +1,8 @@
 #!/bin/bash
 
 mkdir -p /etc/my-operator
-curl -L -o "/usr/local/bin/my_init.sh" "https://raw.githubusercontent.com/garutilorenzo/mypy-operator/master/mysql_standalone/my_init.sh"
-curl -L -o "/usr/local/bin/my_autoconfig.sh" "https://raw.githubusercontent.com/garutilorenzo/mypy-operator/master/mysql_standalone/my_autoconfig.sh"
+curl -s -L -o "/usr/local/bin/my_init.sh" "https://raw.githubusercontent.com/garutilorenzo/mypy-operator/master/mysql_standalone/my_init.sh"
+curl -s -L -o "/usr/local/bin/my_autoconfig.sh" "https://raw.githubusercontent.com/garutilorenzo/mypy-operator/master/mysql_standalone/my_autoconfig.sh"
 chmod 700 /usr/local/bin/my_init.sh
 chmod 700 /usr/local/bin/my_autoconfig.sh
 
@@ -10,7 +10,7 @@ if [ ! -f /etc/my-operator/operator.conf ]; then
 	echo "operator.conf not found"
 	echo "I will download a sample operator.conf"
 	echo "PLEASE adjust this file with your settings"
-	curl -L -o "/etc/my-operator/operator.conf" "https://raw.githubusercontent.com/garutilorenzo/mypy-operator/master/mysql_standalone/operator.conf"
+	curl -s -L -o "/etc/my-operator/operator.conf" "https://raw.githubusercontent.com/garutilorenzo/mypy-operator/master/mysql_standalone/operator.conf"
 	chmod 600 /etc/my-operator/operator.conf
 	exit 1
 fi
@@ -25,6 +25,7 @@ echo ""
 response=${response,,}
 if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
 
+	source /etc/my-operator/operator.conf
 	DEBIAN_FRONTEND=noninteractive
 
 	apt-get update
