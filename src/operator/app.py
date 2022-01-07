@@ -5,6 +5,7 @@ import bottle_config, db_api, utils
 from mongoengine import *
 
 main_config = bottle_config.load()
+OPERATOR_SECRET = main_config['operator_secret']
 
 dirname = '/app/src/{}/'.format(os.getenv('BOTTLE_APP_NAME'))
 
@@ -100,7 +101,7 @@ def api_get_init_cluster():
     for value in params:
         data[value] = data.get(value, '')
     
-    if not data['auth_key'] or data['auth_key'] != 'CHANGE_ME':
+    if not data['auth_key'] or data['auth_key'] != OPERATOR_SECRET:
         response.status = 401
         response.set_header("Content-Type", 'application/json')
         result['errors'].append('access denied')
@@ -116,6 +117,48 @@ def api_get_init_cluster():
     # return 200 Success
     response.set_header("Content-Type", 'application/json')
     return json.dumps(init_result, indent=4, sort_keys=True)
+
+@app.route('/api/update/cluster', method='POST')
+def api_update_cluster():
+    result = {'errors': [], 'data': []}
+    params = ['auth_key', 'cluster_name', 'cluster_status']
+   
+    # parse input data
+    try:
+        data = request.json
+    except ValueError:
+        response.status = 400
+        response.set_header("Content-Type", 'application/json')
+        result['errors'].append('Value error, only application/json objects acepted')
+        return json.dumps(result, indent=4, sort_keys=True)
+    
+    
+    for key in data.keys():
+        if key not in params:
+            response.status = 400
+            response.set_header("Content-Type", 'application/json')
+            result['errors'].append('{} params not acepted'.format(key))
+            return json.dumps(result, indent=4, sort_keys=True)
+    
+    for value in params:
+        data[value] = data.get(value, '')
+    
+    if not data['auth_key'] or data['auth_key'] != OPERATOR_SECRET:
+        response.status = 401
+        response.set_header("Content-Type", 'application/json')
+        result['errors'].append('access denied')
+        return json.dumps(result, indent=4, sort_keys=True)
+
+    clusters_result = db_api.update_cluster(data)
+    if clusters_result.get('errors'):
+        response.status = 500
+        response.set_header("Content-Type", 'application/json')
+        result['errors'].extend(str(clusters_result['errors']))
+        return json.dumps(result, indent=4, sort_keys=True)
+
+    # return 200 Success
+    response.set_header("Content-Type", 'application/json')
+    return json.dumps(clusters_result, indent=4, sort_keys=True)
 
 @app.route('/api/get/clusters', method='POST')
 def api_get_clusters():
@@ -142,7 +185,7 @@ def api_get_clusters():
     for value in params:
         data[value] = data.get(value, '')
     
-    if not data['auth_key'] or data['auth_key'] != 'CHANGE_ME':
+    if not data['auth_key'] or data['auth_key'] != OPERATOR_SECRET:
         response.status = 401
         response.set_header("Content-Type", 'application/json')
         result['errors'].append('access denied')
@@ -184,7 +227,7 @@ def api_get_servers():
     for value in params:
         data[value] = data.get(value, '')
     
-    if not data['auth_key'] or data['auth_key'] != 'CHANGE_ME':
+    if not data['auth_key'] or data['auth_key'] != OPERATOR_SECRET:
         response.status = 401
         response.set_header("Content-Type", 'application/json')
         result['errors'].append('access denied')
@@ -230,7 +273,7 @@ def api_get_cluster_members():
     for value in params:
         data[value] = data.get(value, '')
     
-    if not data['auth_key'] or data['auth_key'] != 'CHANGE_ME':
+    if not data['auth_key'] or data['auth_key'] != OPERATOR_SECRET:
         response.status = 401
         response.set_header("Content-Type", 'application/json')
         result['errors'].append('access denied')
@@ -272,7 +315,7 @@ def api_get_server_id():
     for value in params:
         data[value] = data.get(value, '')
     
-    if not data['auth_key'] or data['auth_key'] != 'CHANGE_ME':
+    if not data['auth_key'] or data['auth_key'] != OPERATOR_SECRET:
         response.status = 401
         response.set_header("Content-Type", 'application/json')
         result['errors'].append('access denied')

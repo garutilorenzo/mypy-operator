@@ -14,6 +14,8 @@ services:
       - PYTHONPATH=$PYTHONPATH:/app/src
       - BOTTLE_APP_ENVIRONMENT=dev
       - BOTTLE_APP_NAME=operator
+      - OPERATOR_URL=http://operator:8080
+      - OPERATOR_SECRET=073ad6c8a937bc4ee208678997f2cc4c8fd2b285e1ebcb2955c038a86592c28a
     volumes:
       - ./src:/app/src
     command: ['python', 'operator/app.py']
@@ -64,11 +66,13 @@ services:
     cap_add:
       - SYS_NICE  # CAP_SYS_NICE
     environment:
-       MYSQL_ROOT_PASSWORD: root
+       MYSQL_ROOT_PASSWORD: root_node1
        MYSQL_USER: test
-       MYSQL_PASSWORD: P@ssw0rd
+       MYSQL_PASSWORD: P@ssw0rd1
        MYSQL_DATABASE: db_test
-       GROUP_REPLICATION_NAME: C55153C1-1574-4972-BF06-7332D6AD46A7
+       CLUSTER_NAME: mysql-lab
+       OPERATOR_URL: http://operator:8080
+       OPERATOR_SECRET: 073ad6c8a937bc4ee208678997f2cc4c8fd2b285e1ebcb2955c038a86592c28a
   
   mysql_node02:
     hostname: mysql_node02
@@ -89,14 +93,62 @@ services:
     cap_add:
       - SYS_NICE  # CAP_SYS_NICE
     environment:
-       MYSQL_ROOT_PASSWORD: root
+       MYSQL_ROOT_PASSWORD: root_node2
        MYSQL_USER: test
-       MYSQL_PASSWORD: P@ssw0rd
+       MYSQL_PASSWORD: P@ssw0rd2
        MYSQL_DATABASE: db_test
-       GROUP_REPLICATION_NAME: C55153C1-1574-4972-BF06-7332D6AD46A7
+       CLUSTER_NAME: mysql-lab
+       OPERATOR_URL: http://operator:8080
+       OPERATOR_SECRET: 073ad6c8a937bc4ee208678997f2cc4c8fd2b285e1ebcb2955c038a86592c28a
+
+  mysql_node03:
+    hostname: mysql_node03
+    image: mysql_server:dev
+    build:
+     context: mysql_image/
+     args:
+       - http_proxy=$http_proxy
+       - https_proxy=$http_proxy
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - ./data:/sql
+      - type: volume
+        source: mysql_node03
+        target: /var/lib/mysql/
+        volume:
+          nocopy: true
+    cap_add:
+      - SYS_NICE  # CAP_SYS_NICE
+    environment:
+       MYSQL_ROOT_PASSWORD: root_node3
+       MYSQL_USER: test
+       MYSQL_PASSWORD: P@ssw0rd3
+       MYSQL_DATABASE: db_test
+       CLUSTER_NAME: mysql-lab
+       OPERATOR_URL: http://operator:8080
+       OPERATOR_SECRET: 073ad6c8a937bc4ee208678997f2cc4c8fd2b285e1ebcb2955c038a86592c28a
+
+  
+  orchestrator:
+    hostname: orchestrator
+    image: openarkcode/orchestrator:latest
+    volumes:
+      - type: volume
+        source: orchestrator
+        target: /app/data
+        volume:
+          nocopy: true
+    environment:
+      ORC_TOPOLOGY_USER: orc_client_user
+      ORC_TOPOLOGY_PASSWORD: orc_client_password
+    ports:
+      - "3000:3000"
 
 volumes:
  mongo:
  mysql_node01:
  mysql_node02:
  mysql_node03:
+ mysql_node04:
+ orchestrator:

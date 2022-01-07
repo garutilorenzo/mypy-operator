@@ -7,3 +7,4 @@ mongo_password: "operator"
 mongo_db: "mysql_operator"
 mongo_host: "mongo"
 mongo_port: 27017
+operator_secret: 073ad6c8a937bc4ee208678997f2cc4c8fd2b285e1ebcb2955c038a86592c28a

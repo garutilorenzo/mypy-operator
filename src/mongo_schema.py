@@ -5,7 +5,7 @@ class Cluster(Document):
     cluster_name = StringField(required=False, unique=True)
     gr_name = StringField(required=True, unique=True)
     gr_vcu = StringField(required=True, unique=True)
-    state = StringField(required=False, default='init')
+    state = StringField(required=False, default='discovered')
     replica_user = StringField(required=True, default='replica')
     replica_pw = StringField(required=True)
     operator_user = StringField(required=True, default='operator')

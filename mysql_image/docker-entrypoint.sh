@@ -24,7 +24,7 @@ mysql_error() {
 generate_server_id_data() {
 	cat <<-EOF
 	{
-		"auth_key":"CHANGE_ME", "cluster_name": "$CLUSTER_NAME", "server_name": "$MYSQL_HOSTNAME", "my_root_pw": "$MYSQL_ROOT_PASSWORD" 
+		"auth_key":"$OPERATOR_SECRET", "cluster_name": "$CLUSTER_NAME", "server_name": "$MYSQL_HOSTNAME", "my_root_pw": "$MYSQL_ROOT_PASSWORD" 
 	}
 	EOF
 }
@@ -32,7 +32,7 @@ generate_server_id_data() {
 generate_cluster_members_data() {
 	cat <<-EOF
 	{
-		"auth_key":"CHANGE_ME", "cluster_name": "$CLUSTER_NAME", "operator_user": "$OPERATOR_USER", "operator_pw": "$OPERATOR_PASSWORD", "replica_user": "$REPLICA_USER", "replica_pw": "$REPLICA_PASSWORD"
+		"auth_key":"$OPERATOR_SECRET", "cluster_name": "$CLUSTER_NAME", "operator_user": "$OPERATOR_USER", "operator_pw": "$OPERATOR_PASSWORD", "replica_user": "$REPLICA_USER", "replica_pw": "$REPLICA_PASSWORD"
 	}
 	EOF
 }
@@ -350,11 +350,12 @@ setup_operator_user() {
 		SET @@SESSION.SQL_LOG_BIN=0;
 		
 		CREATE USER '$OPERATOR_USER'@'%' IDENTIFIED BY '$OPERATOR_PASSWORD' ;
-		GRANT RELOAD, SHUTDOWN, PROCESS, FILE, SELECT, SUPER, REPLICATION SLAVE, REPLICATION CLIENT, REPLICATION_APPLIER, CREATE USER, SYSTEM_VARIABLES_ADMIN, PERSIST_RO_VARIABLES_ADMIN, BACKUP_ADMIN, CLONE_ADMIN, EXECUTE ON *.* TO '$OPERATOR_USER'@'%' ;
-		GRANT ALTER, ALTER ROUTINE, CREATE, CREATE ROUTINE, CREATE TEMPORARY TABLES, CREATE VIEW, DELETE, DROP, EVENT, EXECUTE, INDEX, INSERT, LOCK TABLES, REFERENCES, SHOW VIEW, TRIGGER, UPDATE ON  mysql_innodb_cluster_metadata.*  TO '$OPERATOR_USER'@'%' ;
-		GRANT ALTER, ALTER ROUTINE, CREATE, CREATE ROUTINE, CREATE TEMPORARY TABLES, CREATE VIEW, DELETE, DROP, EVENT, EXECUTE, INDEX, INSERT, LOCK TABLES, REFERENCES, SHOW VIEW, TRIGGER, UPDATE ON  mysql_innodb_cluster_metadata_bkp.*  TO '$OPERATOR_USER'@'%' ;
-		GRANT ALTER, ALTER ROUTINE, CREATE, CREATE ROUTINE, CREATE TEMPORARY TABLES, CREATE VIEW, DELETE, DROP, EVENT, EXECUTE, INDEX, INSERT, LOCK TABLES, REFERENCES, SHOW VIEW, TRIGGER, UPDATE ON  mysql_innodb_cluster_metadata_previous.*  TO '$OPERATOR_USER'@'%' ;
-		GRANT INSERT, UPDATE, DELETE ON mysql.* TO '$OPERATOR_USER'@'%' ;
+		GRANT RELOAD, SHUTDOWN, PROCESS, FILE, SELECT, SUPER, REPLICATION SLAVE, REPLICATION CLIENT, REPLICATION_APPLIER, CREATE USER, SYSTEM_VARIABLES_ADMIN, PERSIST_RO_VARIABLES_ADMIN, BACKUP_ADMIN, CLONE_ADMIN, EXECUTE ON *.* TO '$OPERATOR_USER'@'%' WITH GRANT OPTION ;
+		GRANT ALTER, ALTER ROUTINE, CREATE, CREATE ROUTINE, CREATE TEMPORARY TABLES, CREATE VIEW, DELETE, DROP, EVENT, EXECUTE, INDEX, INSERT, LOCK TABLES, REFERENCES, SHOW VIEW, TRIGGER, UPDATE ON  mysql_innodb_cluster_metadata.*  TO '$OPERATOR_USER'@'%' WITH GRANT OPTION ;
+		GRANT ALTER, ALTER ROUTINE, CREATE, CREATE ROUTINE, CREATE TEMPORARY TABLES, CREATE VIEW, DELETE, DROP, EVENT, EXECUTE, INDEX, INSERT, LOCK TABLES, REFERENCES, SHOW VIEW, TRIGGER, UPDATE ON  mysql_innodb_cluster_metadata_bkp.*  TO '$OPERATOR_USER'@'%' WITH GRANT OPTION ;
+		GRANT ALTER, ALTER ROUTINE, CREATE, CREATE ROUTINE, CREATE TEMPORARY TABLES, CREATE VIEW, DELETE, DROP, EVENT, EXECUTE, INDEX, INSERT, LOCK TABLES, REFERENCES, SHOW VIEW, TRIGGER, UPDATE ON  mysql_innodb_cluster_metadata_previous.*  TO '$OPERATOR_USER'@'%' WITH GRANT OPTION ;
+		GRANT INSERT, UPDATE, DELETE ON mysql.* TO '$OPERATOR_USER'@'%' WITH GRANT OPTION ;
+		GRANT CONNECTION_ADMIN, GROUP_REPLICATION_ADMIN, REPLICATION_SLAVE_ADMIN, ROLE_ADMIN ON *.* TO '$OPERATOR_USER'@'%' WITH GRANT OPTION;
 	EOSQL
 }
 
@@ -382,7 +383,7 @@ mysql_autoconfig_minimal_env() {
 	
 	init_cluster=$(curl -s --header "Content-Type: application/json"   --request POST   \
 		--data "$(generate_cluster_members_data)" \
-		http://operator:8080/api/get/init_cluster)
+		$OPERATOR_URL/api/get/init_cluster)
 
 	GR_NAME=$(echo "$init_cluster" | jq -r '.data.gr_name')
 	GR_VCU=$(echo "$init_cluster" | jq -r '.data.gr_vcu')
@@ -399,7 +400,7 @@ mysql_autoconfig_minimal_env() {
 	
 	server_id=$(curl --header "Content-Type: application/json"   --request POST   \
 			--data "$(generate_server_id_data)" \
-			http://operator:8080/api/get/server_id | jq -r '.data.server_id')
+			$OPERATOR_URL/api/get/server_id | jq -r '.data.server_id')
 	
 	MYSQL_SERVER_ID=$server_id
 	echo $server_id
@@ -431,7 +432,7 @@ mysql_autoconfig() {
 
 		init_cluster=$(curl -s --header "Content-Type: application/json"   --request POST   \
 		--data "$(generate_cluster_members_data)" \
-		http://operator:8080/api/get/init_cluster)
+		$OPERATOR_URL/api/get/init_cluster)
 
 		GR_NAME=$(echo "$init_cluster" | jq -r '.data.gr_name')
 		GR_VCU=$(echo "$init_cluster" | jq -r '.data.gr_vcu')
@@ -441,11 +442,11 @@ mysql_autoconfig() {
 		
 		available_servers=$(curl --header "Content-Type: application/json"   --request POST   \
 		--data "$(generate_cluster_members_data)" \
-		http://operator:8080/api/get/cluster_members | jq -r '.data.available_servers')
+		$OPERATOR_URL/api/get/cluster_members | jq -r '.data.available_servers')
 		
 		server_id=$(curl --header "Content-Type: application/json"   --request POST   \
 				--data "$(generate_server_id_data)" \
-				http://operator:8080/api/get/server_id | jq -r '.data.server_id')
+				$OPERATOR_URL/api/get/server_id | jq -r '.data.server_id')
 		
 		MYSQL_SERVER_ID=$server_id
 		echo $available_servers
@@ -460,7 +461,7 @@ mysql_autoconfig() {
 			GR_SEEDS="group_replication_group_seeds="
 			cluster_members=$(curl --header "Content-Type: application/json"   --request POST   \
 			--data "$(generate_cluster_members_data)" \
-			http://operator:8080/api/get/cluster_members | jq -r '.data.members[]')
+			$OPERATOR_URL/api/get/cluster_members | jq -r '.data.members[]')
 			for server in $cluster_members
 			do
 				GR_SEEDS="$GR_SEEDS$server:33061,"

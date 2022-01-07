@@ -1,22 +1,48 @@
-import json, pprint, time, datetime
+import json, pprint, time, datetime, os
 import urllib.request
 from mysqlsh import mysql
 import security_lib
 
+OPERATOR_URL = os.getenv('OPERATOR_URL')
+OPERATOR_SECRET = os.getenv('OPERATOR_SECRET')
+
 def get_servers(cluster_name):
     servers_result = []
-    server_url = 'http://operator:8080/api/get/servers'
-    server_args = {'auth_key': 'CHANGE_ME', 'cluster_name': cluster_name}
+    server_url = '{}/api/get/servers'.format(OPERATOR_URL)
+    server_args = {'auth_key': OPERATOR_SECRET, 'cluster_name': cluster_name}
     server_params = json.dumps(server_args).encode('utf8')
-    server_req = urllib.request.Request(server_url, data=server_params,
-        headers={'content-type': 'application/json'})
-    server_response = urllib.request.urlopen(server_req)
-    server_json = json.loads(server_response.read().decode('utf8'))
-    if not server_json.get('errors'):
-        servers = server_json['data']
-        for server in servers:
-            servers_result.append(server)
+
+    try:
+        server_req = urllib.request.Request(server_url, data=server_params,
+            headers={'content-type': 'application/json'})
+        server_response = urllib.request.urlopen(server_req)
+        server_json = json.loads(server_response.read().decode('utf8'))
+        if not server_json.get('errors'):
+            servers = server_json['data']
+            for server in servers:
+                servers_result.append(server)
+    except Exception as e:
+        print(f'Error reading from operator web api')
+
     return servers_result
+
+def update_cluster_status(cluster_name, cluster_status):
+    server_url = '{}/api/update/cluster'.format(OPERATOR_URL)
+    server_args = {'auth_key': OPERATOR_SECRET, 'cluster_name': cluster_name, 'cluster_status': cluster_status}
+    server_params = json.dumps(server_args).encode('utf8')
+
+    try:
+        server_req = urllib.request.Request(server_url, data=server_params,
+            headers={'content-type': 'application/json'})
+        server_response = urllib.request.urlopen(server_req)
+        server_json = json.loads(server_response.read().decode('utf8'))
+        exit_code = 0
+        if not server_json.get('errors'):
+            exit_code = server_json['data']['exit_code']
+    except Exception as e:
+        print(f'Error reading from operator web api')
+        exit_code = 1
+    return exit_code
 
 def get_time_from_creation(created_time):
     c_time = datetime.datetime.fromtimestamp(created_time/1000)
@@ -33,16 +59,20 @@ def cluster_exist(cluster_name):
         is_cluster_exist = False
     return is_cluster_exist
 
-def mysql_session(server, root_pw):
+def mysql_session(server, root_pw, schema=''):
+
+    conn_string = 'root:{}@{}'.format(root_pw, server)
+    if schema:
+        conn_string = 'root:{}@{}/{}'.format(root_pw, server,schema)
     try:
-        mySession = mysql.get_classic_session('root:{}@{}'.format(root_pw, server))
+        mySession = mysql.get_classic_session(conn_string)
     except Exception as e:
         mySession = None
     return mySession
 
-def shell_session_open(server, root_pw):
+def shell_session_open(server, user, user_pw):
     try:
-        shSession = shell.connect('mysql://root:{}@{}'.format(root_pw, server))
+        shSession = shell.connect('mysql://{}:{}@{}'.format(user, user_pw, server))
     except Exception as e:
         shSession = None
     return shSession
@@ -73,6 +103,23 @@ def get_primary(first_server, root_pw):
         return get_primary_result[0]
     return None
 
+def create_orchestrator_user(primary_server, root_pw):
+    conn = mysql_session(primary_server, root_pw, 'mysql')
+    if conn:
+        user_exists_sql = "SELECT EXISTS(SELECT 1 FROM mysql.user WHERE user = 'orc_client_user')"
+        user_exists = conn.run_sql(user_exists_sql).fetch_one()
+        if int(user_exists[0]) == 0:
+            create_user_sql_list = [
+            "CREATE USER IF NOT EXISTS 'orc_client_user'@'%' IDENTIFIED BY 'orc_client_password';",
+            "GRANT SUPER, PROCESS, REPLICATION SLAVE, REPLICATION CLIENT, RELOAD ON *.* TO 'orc_client_user'@'%';",
+            "GRANT SELECT ON mysql.slave_master_info TO 'orc_client_user'@'%';",
+            "GRANT SELECT ON meta.* TO 'orc_client_user'@'%';",
+            "GRANT SELECT ON performance_schema.replication_group_members TO 'orc_client_user'@'%';",
+            ]
+            for statement in create_user_sql_list:
+                statement_result = conn.run_sql(statement)
+        conn.close()
+
 def create_cluster(cluster_name):
     try:
         create_cluster_result = dba.create_cluster(cluster_name, {'adoptFromGR': True})
@@ -80,7 +127,7 @@ def create_cluster(cluster_name):
         create_cluster_result = None
     return create_cluster_result
 
-def add_server(cluster_status):
+def add_server(cluster, cluster_status):
     cluster_servers = cluster_status['defaultReplicaSet']['topology'].keys()
          
     for server in cluster_servers:
@@ -93,8 +140,8 @@ def add_server(cluster_status):
             cluster.add_instance(server)
 
 def operator_run():
-    cluster_url = 'http://operator:8080/api/get/clusters'
-    cluster_args = {'auth_key': 'CHANGE_ME'}
+    cluster_url = '{}/api/get/clusters'.format(OPERATOR_URL)
+    cluster_args = {'auth_key': OPERATOR_SECRET}
     cluster_params = json.dumps(cluster_args).encode('utf8')
 
     while True:
@@ -106,33 +153,45 @@ def operator_run():
             if not cluster_json.get('errors'):
                 clusters = cluster_json['data']
                 for cluster in clusters:
+
+                    operator_user = cluster['operator_user']
+                    operator_pw_enc = cluster['operator_pw']
+                    operator_pw = security_lib.decode(operator_pw_enc.encode('utf8'))
+
                     servers = get_servers(cluster_name=cluster['cluster_name'])
-                    first_server = servers[0]['server_name']
-                    root_pw_enc = servers[0]['root_pw']
-                    root_pw = security_lib.decode(root_pw_enc.encode('utf8'))
+                    if servers:
+                        first_server = servers[0]['server_name']
+                        root_pw_enc = servers[0]['root_pw']
+                        root_pw = security_lib.decode(root_pw_enc.encode('utf8'))
 
-                    seconds_from_creation = get_time_from_creation(cluster['created_time']['$date'])
-                    
-                    primary_server = get_primary(first_server, root_pw)
-                    primary_server_data = [s for s in servers if s['server_name'] in primary_server][0]
-                    primary_server_pw_enc = primary_server_data['root_pw']
-                    primary_server_pw = security_lib.decode(primary_server_pw_enc.encode('utf8'))
+                        seconds_from_creation = get_time_from_creation(cluster['created_time']['$date'])
+                        if seconds_from_creation <= 120:
+                            update_cluster_status(cluster['cluster_name'], 'init')
+                            print('Cluster name: {} discovered, waiting 120 seconds before init'.format(cluster['cluster_name']))
+                            continue
 
-                    if not primary_server:
-                        continue
+                        primary_server = get_primary(first_server, root_pw)
+                        primary_server_data = [s for s in servers if s['server_name'] in primary_server][0]
+                        primary_server_pw_enc = primary_server_data['root_pw']
+                        primary_server_pw = security_lib.decode(primary_server_pw_enc.encode('utf8'))
+                        create_orchestrator_user(primary_server, primary_server_pw)
 
-                    if shell_session_open(primary_server, root_pw):
-                        is_cluster_exist = cluster_exist(cluster['cluster_name'])
-                        if not is_cluster_exist:
-                            res = create_cluster(cluster_name=cluster['cluster_name'])
-                        else:
-                            cluster = dba.get_cluster(cluster['cluster_name'])
-                            cluster_status = cluster.status()
-                            print(cluster_status)
+                        if not primary_server:
+                            continue
 
-                            add_server(cluster_status)
+                        if shell_session_open(primary_server, operator_user, operator_pw):
+                            is_cluster_exist = cluster_exist(cluster['cluster_name'])
+                            if not is_cluster_exist:
+                                res = create_cluster(cluster_name=cluster['cluster_name'])
+                                update_cluster_status(cluster['cluster_name'], 'online')
+                            else:
+                                cluster = dba.get_cluster(cluster['cluster_name'])
+                                cluster_status = cluster.status()
+                                print(cluster_status)
 
-                        shell_session_close()
+                                add_server(cluster, cluster_status)
+
+                            shell_session_close()
             print('Sleep for 5')
             time.sleep(5)
             

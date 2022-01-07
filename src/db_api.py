@@ -131,6 +131,19 @@ def get_cluster_members(data):
         result['available_servers'] = None
     return {'errors': errors, 'data': result}
 
+def update_cluster(data):
+    errors = []
+    result = {}
+    try:
+        cluster = Cluster.objects(cluster_name=data['cluster_name']).first()
+        cluster.state = data['cluster_status']
+        cluster.save()
+        result['exit_code'] = 1
+    except Exception as e:
+        errors.append(e)
+        result['exit_code'] = 0
+    return {'errors': errors, 'data': result}
+
 def get_server_id(data):
     errors = []
     result = {}

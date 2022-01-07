@@ -13,10 +13,12 @@
                     Cluster name: {{ cluster.cluster_name }} 
                 </p>
                 <p> 
-                  % if cluster.state == 'active':
+                  % if cluster.state == 'online':
                   % badge_css = 'bg-success'
-                  % elif cluster.state == 'init':
+                  % elif cluster.state == 'discovered':
                   % badge_css = 'bg-danger'
+                  % elif cluster.state == 'init':
+                  % badge_css = 'bg-warning'
                   % end
                   State: <span class="badge rounded-pill {{ badge_css }}">{{ cluster.state }}</span> 
                 </p>
