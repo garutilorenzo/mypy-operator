@@ -1,0 +1,34 @@
+name: mypy-operator docker build CI
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build the Docker image
+      run: docker-compose -f docker-compose.yml build --pull --no-cache
+    - name: Log in to registry
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+    - name: Push operator_web:dev image
+      run: |
+        IMAGE_ID=ghcr.io/${{ github.repository_owner }}/operator_web:dev
+        echo IMAGE_ID=$IMAGE_ID
+        docker tag operator_web:dev $IMAGE_ID
+        docker push $IMAGE_ID
+    - name: Push operator_server:dev image
+      run: |
+        IMAGE_ID=ghcr.io/${{ github.repository_owner }}/operator_server:dev
+        echo IMAGE_ID=$IMAGE_ID
+        docker tag operator_server:dev $IMAGE_ID
+        docker push $IMAGE_ID
