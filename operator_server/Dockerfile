@@ -42,7 +42,7 @@ RUN curl -L -o get-pip.py https://bootstrap.pypa.io/get-pip.py && \
     rm -rf get-pip.py && \
     mysqlsh --pym pip install --user cryptography 
 
-COPY ./src /app
+COPY ./src /app/src
 RUN chown -R 1000:1000 /app/src
 
 USER web

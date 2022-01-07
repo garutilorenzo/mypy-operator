@@ -22,7 +22,7 @@ RUN pip3 install --user --no-cache-dir -r /app/requirements.txt\
 
 USER root
 RUN apk del --no-network make gcc linux-headers musl-dev openssl-dev libffi-dev libc-dev g++
-COPY ./src /app 
+COPY ./src /app/src
 RUN chown -R 1000:1000 /app/src
 
 USER web
