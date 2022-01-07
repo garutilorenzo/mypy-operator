@@ -1,6 +1,6 @@
 FROM python:3-alpine
 
-RUN apk add --no-cache libpq-dev curl bash make gcc linux-headers musl-dev libc-dev g++
+RUN apk add --no-cache libpq-dev curl bash make gcc linux-headers openssl-dev libffi-dev musl-dev libc-dev g++
 
 WORKDIR /app/src
 
@@ -21,6 +21,6 @@ RUN pip3 install --user --no-cache-dir -r /app/requirements.txt\
     && rm -rf /app/requirements.txt
 
 USER root
-RUN apk del --no-network make gcc linux-headers musl-dev libc-dev g++
+RUN apk del --no-network make gcc linux-headers musl-dev openssl-dev libffi-dev libc-dev g++
 
 USER web

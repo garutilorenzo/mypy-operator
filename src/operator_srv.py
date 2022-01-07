@@ -5,6 +5,10 @@ import security_lib
 
 OPERATOR_URL = os.getenv('OPERATOR_URL')
 OPERATOR_SECRET = os.getenv('OPERATOR_SECRET')
+ORC_TOPOLOGY_USER = os.getenv('ORC_TOPOLOGY_USER')
+ORC_TOPOLOGY_PASSWORD = os.getenv('ORC_TOPOLOGY_PASSWORD')
+UPDATE_TIME_ENV = os.getenv('UPDATE_TIME')
+UPDATE_TIME = 30 if not UPDATE_TIME_ENV else UPDATE_TIME_ENV
 
 def get_servers(cluster_name):
     servers_result = []
@@ -106,15 +110,15 @@ def get_primary(first_server, root_pw):
 def create_orchestrator_user(primary_server, root_pw):
     conn = mysql_session(primary_server, root_pw, 'mysql')
     if conn:
-        user_exists_sql = "SELECT EXISTS(SELECT 1 FROM mysql.user WHERE user = 'orc_client_user')"
+        user_exists_sql = "SELECT EXISTS(SELECT 1 FROM mysql.user WHERE user = '{}')".format(ORC_TOPOLOGY_USER)
         user_exists = conn.run_sql(user_exists_sql).fetch_one()
         if int(user_exists[0]) == 0:
             create_user_sql_list = [
-            "CREATE USER IF NOT EXISTS 'orc_client_user'@'%' IDENTIFIED BY 'orc_client_password';",
-            "GRANT SUPER, PROCESS, REPLICATION SLAVE, REPLICATION CLIENT, RELOAD ON *.* TO 'orc_client_user'@'%';",
-            "GRANT SELECT ON mysql.slave_master_info TO 'orc_client_user'@'%';",
-            "GRANT SELECT ON meta.* TO 'orc_client_user'@'%';",
-            "GRANT SELECT ON performance_schema.replication_group_members TO 'orc_client_user'@'%';",
+            "CREATE USER IF NOT EXISTS '{}'@'%' IDENTIFIED BY '{}';".format(ORC_TOPOLOGY_USER, ORC_TOPOLOGY_PASSWORD),
+            "GRANT SUPER, PROCESS, REPLICATION SLAVE, REPLICATION CLIENT, RELOAD ON *.* TO '{}'@'%';".format(ORC_TOPOLOGY_USER),
+            "GRANT SELECT ON mysql.slave_master_info TO '{}'@'%';".format(ORC_TOPOLOGY_USER),
+            "GRANT SELECT ON meta.* TO '{}'@'%';".format(ORC_TOPOLOGY_USER),
+            "GRANT SELECT ON performance_schema.replication_group_members TO '{}'@'%';".format(ORC_TOPOLOGY_USER),
             ]
             for statement in create_user_sql_list:
                 statement_result = conn.run_sql(statement)
@@ -192,8 +196,9 @@ def operator_run():
                                 add_server(cluster, cluster_status)
 
                             shell_session_close()
-            print('Sleep for 5')
-            time.sleep(5)
+            
+            print('Sleep for {}'.format(str(UPDATE_TIME)))
+            time.sleep(UPDATE_TIME)
             
         except StopIteration:
             print(f'Error reading from operator web api')

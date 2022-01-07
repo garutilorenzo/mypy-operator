@@ -11,11 +11,6 @@ RUN groupadd -g 1000 web
 RUN useradd -d /app -s /bin/bash -g web -u 1000 web && \
     chown -R 1000:1000 /app
 
-USER web
-COPY requirements.txt /app/requirements.txt
-RUN pip3 install --user --no-cache-dir -r /app/requirements.txt\
-    && rm -rf /app/requirements.txt
-
 USER root
 
 RUN set -ex; \
@@ -46,7 +41,5 @@ RUN curl -L -o get-pip.py https://bootstrap.pypa.io/get-pip.py && \
     mysqlsh --py -f get-pip.py && \
     rm -rf get-pip.py && \
     mysqlsh --pym pip install --user cryptography 
-
-COPY cluster.sh /usr/local/bin/cluster.sh
 
 USER web

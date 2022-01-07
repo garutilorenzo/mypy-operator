@@ -1,21 +1,19 @@
 version: '3.4'
 services:
 
-  operator:
-    image: mysql-operator:dev
+  operator_web:
+    image: operator_web:dev
     build:
-     context: operator_image/
+     context: operator_web/
      args:
        - http_proxy=$http_proxy
        - https_proxy=$http_proxy
-    container_name: mysql-operator
+    container_name: operator_web
     environment:
       - PATH=$PATH:/app/.local/bin/
       - PYTHONPATH=$PYTHONPATH:/app/src
       - BOTTLE_APP_ENVIRONMENT=dev
       - BOTTLE_APP_NAME=operator
-      - OPERATOR_URL=http://operator:8080
-      - OPERATOR_SECRET=073ad6c8a937bc4ee208678997f2cc4c8fd2b285e1ebcb2955c038a86592c28a
     volumes:
       - ./src:/app/src
     command: ['python', 'operator/app.py']
@@ -29,6 +27,32 @@ services:
         max-size: "1m"
         max-file: "5"
     restart: always
+  
+  operator_server:
+    image: operator_server:dev
+    build:
+     context: operator_server/
+     args:
+       - http_proxy=$http_proxy
+       - https_proxy=$http_proxy
+    container_name: operator_server
+    environment:
+      OPERATOR_URL: http://operator_web:8080
+      OPERATOR_SECRET: 073ad6c8a937bc4ee208678997f2cc4c8fd2b285e1ebcb2955c038a86592c28a
+      ORC_TOPOLOGY_USER: orc_client_user
+      ORC_TOPOLOGY_PASSWORD: igh0iebiengie6Id7Ialooliequei0jo
+    volumes:
+      - ./src:/app/src
+    command: ['mysqlsh', '--py', '-f', 'operator_srv.py']
+    depends_on:
+      - mongo
+      - operator_web
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "5"
+    restart: "no"
   
   mongo:
     image: mongo:latest
@@ -71,7 +95,7 @@ services:
        MYSQL_PASSWORD: P@ssw0rd1
        MYSQL_DATABASE: db_test
        CLUSTER_NAME: mysql-lab
-       OPERATOR_URL: http://operator:8080
+       OPERATOR_URL: http://operator_web:8080
        OPERATOR_SECRET: 073ad6c8a937bc4ee208678997f2cc4c8fd2b285e1ebcb2955c038a86592c28a
   
   mysql_node02:
@@ -98,7 +122,7 @@ services:
        MYSQL_PASSWORD: P@ssw0rd2
        MYSQL_DATABASE: db_test
        CLUSTER_NAME: mysql-lab
-       OPERATOR_URL: http://operator:8080
+       OPERATOR_URL: http://operator_web:8080
        OPERATOR_SECRET: 073ad6c8a937bc4ee208678997f2cc4c8fd2b285e1ebcb2955c038a86592c28a
 
   mysql_node03:
@@ -126,10 +150,9 @@ services:
        MYSQL_PASSWORD: P@ssw0rd3
        MYSQL_DATABASE: db_test
        CLUSTER_NAME: mysql-lab
-       OPERATOR_URL: http://operator:8080
+       OPERATOR_URL: http://operator_web:8080
        OPERATOR_SECRET: 073ad6c8a937bc4ee208678997f2cc4c8fd2b285e1ebcb2955c038a86592c28a
 
-  
   orchestrator:
     hostname: orchestrator
     image: openarkcode/orchestrator:latest
@@ -141,7 +164,7 @@ services:
           nocopy: true
     environment:
       ORC_TOPOLOGY_USER: orc_client_user
-      ORC_TOPOLOGY_PASSWORD: orc_client_password
+      ORC_TOPOLOGY_PASSWORD: igh0iebiengie6Id7Ialooliequei0jo
     ports:
       - "3000:3000"
 
