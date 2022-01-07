@@ -383,7 +383,7 @@ change_master() {
 mysql_autoconfig_minimal_env() {
 	# MySQL autoconfig minival env
 
-	my_cnf=/etc/mysql/conf.d/mysqld.cnf
+	my_cnf=/etc/mysql/conf.d/cluster.cnf
 
 	mysql_note "Run autoconfig minival env: " 
 	
@@ -430,7 +430,7 @@ mysql_autoconfig() {
 
 	MYSQL_HOSTNAME=$(hostname)
 	export MYSQL_HOSTNAME
-	my_cnf=/etc/mysql/conf.d/mysqld.cnf
+	my_cnf=/etc/mysql/conf.d/cluster.cnf
 	# my_cnf=/tmp/mysqld.cnf
 	if ! grep -Fq group_replication_group_name $my_cnf; then
 		
@@ -538,9 +538,6 @@ _main() {
 
 			docker_verify_minimum_env
 
-			# check dir permissions to reduce likelihood of half-initialized database
-			ls /docker-entrypoint-initdb.d/ > /dev/null
-
 			docker_init_database_dir "$@"
 
 			# Autoconfig min
@@ -571,7 +568,6 @@ _main() {
 		# Autoconfig
 		mysql_autoconfig
 	fi
-	exec "$@"
 }
 
 # If we are sourced from elsewhere, don't perform any further actions
