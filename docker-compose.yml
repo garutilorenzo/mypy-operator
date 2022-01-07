@@ -4,7 +4,8 @@ services:
   operator_web:
     image: operator_web:dev
     build:
-     context: operator_web/
+     context: .
+     dockerfile: operator_web/Dockerfile
      args:
        - http_proxy=$http_proxy
        - https_proxy=$http_proxy
@@ -31,7 +32,8 @@ services:
   operator_server:
     image: operator_server:dev
     build:
-     context: operator_server/
+     context: .
+     dockerfile: operator_server/Dockerfile
      args:
        - http_proxy=$http_proxy
        - https_proxy=$http_proxy
@@ -90,6 +92,7 @@ services:
     cap_add:
       - SYS_NICE  # CAP_SYS_NICE
     environment:
+       MYSQL_HOSTNAME: mysql_node01
        MYSQL_ROOT_PASSWORD: root_node1
        MYSQL_USER: test
        MYSQL_PASSWORD: P@ssw0rd1
@@ -117,6 +120,7 @@ services:
     cap_add:
       - SYS_NICE  # CAP_SYS_NICE
     environment:
+       MYSQL_HOSTNAME: mysql_node02
        MYSQL_ROOT_PASSWORD: root_node2
        MYSQL_USER: test
        MYSQL_PASSWORD: P@ssw0rd2
@@ -145,6 +149,7 @@ services:
     cap_add:
       - SYS_NICE  # CAP_SYS_NICE
     environment:
+       MYSQL_HOSTNAME: mysql_node03
        MYSQL_ROOT_PASSWORD: root_node3
        MYSQL_USER: test
        MYSQL_PASSWORD: P@ssw0rd3

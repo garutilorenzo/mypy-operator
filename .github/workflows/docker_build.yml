@@ -32,3 +32,9 @@ jobs:
         echo IMAGE_ID=$IMAGE_ID
         docker tag operator_server:dev $IMAGE_ID
         docker push $IMAGE_ID
+    - name: Push mysql_server:dev image
+      run: |
+        IMAGE_ID=ghcr.io/${{ github.repository_owner }}/mysql_server:dev
+        echo IMAGE_ID=$IMAGE_ID
+        docker tag mysql_server:dev $IMAGE_ID
+        docker push $IMAGE_ID
