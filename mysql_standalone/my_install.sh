@@ -41,6 +41,8 @@ if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
 	default-authentication-plugin=mysql_native_password
 	EOF
 
+	sed -i 's/bind-address.*$/bind-address = 0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf 
+	
 	source /usr/local/bin/my_init.sh
 
 	docker_setup_env mysqld
