@@ -427,9 +427,7 @@ mysql_autoconfig_minimal_env() {
 
 mysql_autoconfig() {
 	# MySQL autoconfig
-
-	MYSQL_HOSTNAME=$(hostname)
-	export MYSQL_HOSTNAME
+	
 	my_cnf=/etc/mysql/conf.d/cluster.cnf
 	# my_cnf=/tmp/mysqld.cnf
 	if ! grep -Fq group_replication_group_name $my_cnf; then

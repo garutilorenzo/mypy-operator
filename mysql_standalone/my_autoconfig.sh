@@ -1,3 +1,24 @@
+#!/bin/bash
+
+# logging functions
+mysql_log() {
+	local type="$1"; shift
+	# accept argument string or stdin
+	local text="$*"; if [ "$#" -eq 0 ]; then text="$(cat)"; fi
+	local dt; dt="$(date --rfc-3339=seconds)"
+	printf '%s [%s] [Entrypoint]: %s\n' "$dt" "$type" "$text"
+}
+mysql_note() {
+	mysql_log Note "$@"
+}
+mysql_warn() {
+	mysql_log Warn "$@" >&2
+}
+mysql_error() {
+	mysql_log ERROR "$@" >&2
+	exit 1
+}
+
 generate_server_id_data() {
 	cat <<-EOF
 	{
@@ -17,10 +38,7 @@ generate_cluster_members_data() {
 mysql_autoconfig() {
 	# MySQL autoconfig
 
-	MYSQL_HOSTNAME=$(hostname)
-	export MYSQL_HOSTNAME
-	my_cnf=/etc/mysql/conf.d/mysqld.cnf
-	# my_cnf=/tmp/mysqld.cnf
+	my_cnf=/etc/mysql/conf.d/cluster.cnf
 	if ! grep -Fq group_replication_group_name $my_cnf; then
 		
 		mysql_note "Run autoconfig: " 
@@ -78,4 +96,6 @@ mysql_autoconfig() {
 	fi
 }
 
+source /etc/my-operator/operator.conf
+export $(cat /etc/my-operator/operator.conf | egrep -v "(^#.*|^$)" | xargs)
 mysql_autoconfig
