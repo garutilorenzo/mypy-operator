@@ -32,7 +32,7 @@ if [[ $response =~ ^(yes|y| ) ]] || [[ -z $response ]]; then
 	DEBIAN_FRONTEND=noninteractive
 
 	apt-get update
-	apt-get install -y --no-install-recommends mysql-server-8.0
+	apt-get install -y --no-install-recommends mysql-server-8.0 jq
 
 	systemctl stop mysql
 
