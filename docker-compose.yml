@@ -5,7 +5,7 @@ services:
     image: operator_web:dev
     build:
      context: .
-     dockerfile: operator_web/Dockerfile
+     dockerfile: operator_web/Dockerfile.centos
      args:
        - http_proxy=$http_proxy
        - https_proxy=$http_proxy
@@ -17,7 +17,7 @@ services:
       - BOTTLE_APP_NAME=operator
     volumes:
       - ./src:/app/src
-    command: ['python', 'operator/app.py']
+    command: ['python3', '-u', 'operator/app.py']
     ports:
       - 8080:8080
     depends_on:
@@ -33,7 +33,7 @@ services:
     image: operator_server:dev
     build:
      context: .
-     dockerfile: operator_server/Dockerfile
+     dockerfile: operator_server/Dockerfile.centos
      args:
        - http_proxy=$http_proxy
        - https_proxy=$http_proxy
