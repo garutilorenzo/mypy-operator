@@ -1,5 +1,6 @@
 import json, pprint, time, datetime, os
 import urllib.request
+import urllib.parse
 from mysqlsh import mysql
 import security_lib
 
@@ -64,10 +65,10 @@ def cluster_exist(cluster_name):
     return is_cluster_exist
 
 def mysql_session(server, root_pw, schema=''):
-
-    conn_string = 'root:{}@{}'.format(root_pw, server)
+    root_pw_parsed = urllib.parse.quote(root_pw)
+    conn_string = 'root:{}@{}'.format(root_pw_parsed, server)
     if schema:
-        conn_string = 'root:{}@{}/{}'.format(root_pw, server,schema)
+        conn_string = 'root:{}@{}/{}'.format(root_pw_parsed, server, schema)
     try:
         mySession = mysql.get_classic_session(conn_string)
     except Exception as e:
@@ -75,8 +76,9 @@ def mysql_session(server, root_pw, schema=''):
     return mySession
 
 def shell_session_open(server, user, user_pw):
+    user_pw_parsed = urllib.parse.quote(user_pw)
     try:
-        shSession = shell.connect('mysql://{}:{}@{}'.format(user, user_pw, server))
+        shSession = shell.connect('mysql://{}:{}@{}'.format(user, user_pw_parsed, server))
     except Exception as e:
         shSession = None
     return shSession
