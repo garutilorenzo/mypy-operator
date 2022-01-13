@@ -51,5 +51,6 @@ def is_server_reachable(server_name, mysql_port=3306):
         s.close()
         result = True
     except Exception as e:
+        s.close()
         result = False
     return result
