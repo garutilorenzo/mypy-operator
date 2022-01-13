@@ -47,10 +47,9 @@ def build_nav_dropdown_pages():
 def is_server_reachable(server_name, mysql_port=3306):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        s.connect((server_name, mysql_port))
-        s.close()
+        s.connect((server_name, mysql_port))        
         result = True
     except Exception as e:
-        s.close()
         result = False
+    s.close()
     return result
