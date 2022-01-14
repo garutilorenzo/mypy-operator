@@ -1,0 +1,27 @@
+FROM centos:8 as base
+
+RUN yum -y install curl && \
+    curl -L -o mysql80-community-release-el8-2.noarch.rpm https://dev.mysql.com/get/mysql80-community-release-el8-2.noarch.rpm && \
+    yum -y install mysql80-community-release-el8-2.noarch.rpm && \
+    yum -y module disable mysql && \
+    yum clean all && \
+    yum -y install mysql-community-client mysql-router && \
+    rm -rf mysql80-community-release-el8-2.noarch.rpm && \
+    rm -rf /var/cache/yum
+
+RUN rm -rf /etc/mysqlrouter # cleanup 
+
+RUN usermod -d /app mysqlrouter
+RUN mkdir -p /app/mysqlrouter/ && chown -R mysqlrouter:mysqlrouter /app
+
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN ln -s usr/local/bin/docker-entrypoint.sh /entrypoint.sh # backwards compat
+
+USER root
+WORKDIR /app
+
+EXPOSE 6446 64460 6447 64470 8443
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+
+CMD ["mysqlrouter"]

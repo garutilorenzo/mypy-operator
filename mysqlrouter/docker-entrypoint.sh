@@ -21,6 +21,7 @@ if [ "$1" = 'mysqlrouter' ]; then
 
 	PASSFILE=$(mktemp)
 	echo "$MYSQL_PASSWORD" > "$PASSFILE"
+	echo "$MYSQL_ROUTER_PASSWORD" >> "$PASSFILE"
 	DEFAULTS_EXTRA_FILE=$(mktemp)
 	cat >"$DEFAULTS_EXTRA_FILE" <<-EOF
 	[client]
