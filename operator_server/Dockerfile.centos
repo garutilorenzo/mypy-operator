@@ -7,14 +7,14 @@ RUN useradd -d /app -s /bin/bash -g web -u 1000 web && \
     chown -R 1000:1000 /app
 
 RUN yum -y install curl && \
-    curl -L -o mysql80-community-release-el8-2.noarch.rpm https://dev.mysql.com/get/mysql80-community-release-el8-2.noarch.rpm && \
-    yum -y install mysql80-community-release-el8-2.noarch.rpm && \
+    curl -L -o mysql80-community-release-el8-3.noarch.rpm https://dev.mysql.com/get/mysql80-community-release-el8-3.noarch.rpm && \
+    yum -y install mysql80-community-release-el8-3.noarch.rpm && \
     yum -y module disable mysql && \
     yum clean all && \
     yum -y install mysql-community-client mysql-shell && \
     yum -y remove --setopt=clean_requirements_on_remove=1 python39 && \
     yum clean all && \
-    rm -rf mysql80-community-release-el8-2.noarch.rpm && \
+    rm -rf mysql80-community-release-el8-3.noarch.rpm && \
     rm -rf /var/cache/yum
 
 RUN curl -L -o get-pip.py https://bootstrap.pypa.io/get-pip.py && \
