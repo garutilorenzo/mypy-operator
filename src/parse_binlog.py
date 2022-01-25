@@ -4,20 +4,21 @@ STATEMENT_INIT = """BINLOG '"""
 STATEMENT_END = """'/*!*/;"""
 TEST_FILE = 'data/parsed_binlog'
 DATABASE = 'db_test'
-TABLE = 'images'
 
+TABLES = ['images']
 RE_MATCH = ['UPDATE', 'INSERT', 'DELETE', 'REPLACE']
 
 def match_line(line):
-    for action in RE_MATCH:
-        test_line = """### {}.*`{}`.`{}`""".format(
-            action,
+    re_tables = '|'.join(TABLES)
+    re_match = '|'.join(RE_MATCH)
+    test_line = """### (?:{}).*`{}`.`(?:{})`""".format( 
+            re_match,
             DATABASE,
-            TABLE,
+            re_tables,
         )
-        test = re.compile(test_line, re.IGNORECASE)
-        if re.search(test, line):
-            return True
+    test = re.compile(test_line, re.IGNORECASE)
+    if re.search(test, line):
+        return True
     return False
 
 def parse_file():
@@ -39,23 +40,21 @@ def parse_file():
         elif append:
             TMP_STATEMENT_LIST.append(line)
 
-        ## UPDATE `mysql_innodb_cluster_metadata`.`clusters`
         if match_line(line) and STATEMENTS:
             print(STATEMENTS[-1])
             STATEMENTS = []
-       
-
 
 if __name__ == '__main__':
     parse_file()
+    # re_tables = '|'.join(TABLES)
+    # re_match = '|'.join(RE_MATCH)
     # line = """### INSERT INTO `db_test`.`images`"""
-    # test_line = """### {}.*`{}`.`{}`""".format(
-    #         'INSERT',
-    #         'db_test',
-    #         'images',
+    # test_line = """### (?:{}).*`{}`.`(?:{})`""".format( 
+    #         re_match,
+    #         DATABASE,
+    #         re_tables,
     #     )
     # test = re.compile(test_line)
     # print(test)
     # res = re.search(test, line)
-    # print(res)
-    
+    # print(res)    
